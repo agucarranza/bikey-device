@@ -32,6 +32,7 @@ try:
         if not data:
             break
         print("Received", data)
+        client_sock.send(data)
 except OSError:
     pass
 
