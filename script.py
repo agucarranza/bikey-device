@@ -1,47 +1,56 @@
 import serial
 import logging
-# from datetime import datetime, timedelta
 import bluetooth
 import time
+import os
+from subprocess import Popen, PIPE
 
 SERIAL_PORT = "/dev/serial0"
 gps = serial.Serial(SERIAL_PORT, baudrate=9600, timeout=0.5)
 running = True
-start_time = time.time()
+start_time = time.time() # poner cuando se inicializa el driver
+
+# Log
+logger = logging.getLogger('example_log')
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler('/home/pi/debug.log')
+fh.setLevel(logging.DEBUG)
+logger.addHandler(fh)
 
 
 def get_position_data(my_gps):
     data = my_gps.readline()
     message = data[0:6]
-    if message == "$GPRMC":
-        # GPRMC = Recommended minimum specific GPS/Transit data
-        # Reading the GPS fix data is an alternative approach that also works
-        parts = data.split(",")
-        if parts[2] == 'V':
-            # V = Warning, most likely, there are no satellites in view...
-            print "GPS receiver warning"
-            logger.info("error")
-        else:
-            dd = int(float(parts[3]) / 100)
-            mm = float(parts[3]) - dd * 100
-            latitude = dd + mm / 60
-            if parts[4] == 'S':
-                latitude = latitude * -1
-            dd = int(float(parts[5]) / 100)  # degrees
-            mm = float(parts[5]) - dd * 100  # minutes
-            longitude = dd + mm / 60
-            if parts[6] == 'W':
-                longitude = longitude * -1
-            speed = float(parts[7]) * 1.852  # km/h
+    while not message == "$GPRMC":
+        data = my_gps.readline()
+        message = data[0:6]
+        continue
 
-            elapsed_time = time.time() - start_time
-            tiempo = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
-
-            info = tiempo + "," + str(latitude) + "," + str(longitude) + "," + str(speed) + '$'
-            # print(info)
-            return info
+    # GPRMC = Recommended minimum specific GPS/Transit data
+    # Reading the GPS fix data is an alternative approach that also works
+    parts = data.split(",")
+    if parts[2] == 'V':
+        # V = Warning, most likely, there are no satellites in view...
+        print "GPS receiver warning"
+        logger.info("error")
     else:
-        pass
+        dd = int(float(parts[3]) / 100)
+        mm = float(parts[3]) - dd * 100
+        latitude = dd + mm / 60
+        if parts[4] == 'S':
+            latitude = latitude * -1
+        dd = int(float(parts[5]) / 100)  # degrees
+        mm = float(parts[5]) - dd * 100  # minutes
+        longitude = dd + mm / 60
+        if parts[6] == 'W':
+            longitude = longitude * -1
+        speed = float(parts[7]) * 1.852  # km/h
+
+        elapsed_time = time.time() - start_time
+        tiempo = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+
+        info = tiempo + "," + str(latitude) + "," + str(longitude) + "," + str(speed) + '$'
+        return info
 
 
 def bt_server():
@@ -64,41 +73,47 @@ def bt_server():
     return client_sock
 
 
+def send_driver(value):
+    print(value)
+    command = 'echo' + str(value) + '> /dev/Bikey'
+    os.system(command)
+    time.sleep(2)
+
+
+def init_driver():
+    Popen(["insmod", "/home/pi/proyectos/drv4/drv4.ko"], stdout=PIPE)
+    print('driver installed!')
+    time.sleep(3)
+    os.chmod('/dev/Bikey', 0o777)
+    print('permits changed')
+
+
 print "Application started!"
-
-# Log
-logger = logging.getLogger('example_log')
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('/home/pi/debug.log')
-fh.setLevel(logging.DEBUG)
-logger.addHandler(fh)
-
 socket = bt_server()
+init_driver()
 
 while running:
     try:
-        information = get_position_data(gps)
+        received = socket.recv(1024)
+        print('recibido' + str(received))
+        if received == 'd': # Habilitar
+            pass
+        #     socket.send('opcion20')
+        #     pass
+        elif received == 'g': # Enviar string de info.
+            print('recibiendo datos GPS')
 
-        if not information:
-            continue
-        information = information.replace('.', ',')
-        information = information.replace('$', '.')
+            socket.send(get_position_data(gps))
+        elif received == 'u': # Desbloquear.
+             send_driver(0)
+        elif received == 'b': # Bloquear.
+             send_driver(1)
+        else:
+            break
 
-        print(information)
-        # dato = socket.recv(1024)
-        # if not dato:
-        #     break
-        # print("Received", dato)
-        socket.send(information)
-
-    except KeyboardInterrupt:
+    except:
         running = False
         gps.close()
-        print "Application closed!"
-    except OSError:
-        pass
-    except bluetooth.btcommon.BluetoothError:
         socket.close()
-        running = False
-        gps.close()
-        print('ended connection!')
+        print "Application closed!"
+        Popen(["rmmod", "drv4"], stdout=PIPE, stderr=PIPE)
