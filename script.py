@@ -49,11 +49,14 @@ def get_position_data(my_gps):
         elapsed_time = time.time() - start_time
         tiempo = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 
-        info = tiempo + "," + str(latitude) + "," + str(longitude) + "," + str(speed) + '$'
-        return info
+        cadena = tiempo + "," + str(latitude) + "," + str(longitude) + "," + str(speed) + '$'
+        return cadena
 
 
 def bt_server():
+    os.system('echo "discoverable on\\npairable on\\n" | bluetoothctl')
+    print('Bluetooth Visible')
+
     logger.debug("init bt")
     server_sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
     server_sock.bind(("", bluetooth.PORT_ANY))
@@ -74,8 +77,8 @@ def bt_server():
 
 
 def send_driver(value):
-    print(value)
-    command = 'echo' + str(value) + '> /dev/Bikey'
+    command = 'echo ' + str(value) + ' > /dev/Bikey'
+    print(command)
     os.system(command)
     time.sleep(2)
 
@@ -89,31 +92,45 @@ def init_driver():
 
 
 print "Application started!"
-socket = bt_server()
 init_driver()
+socket = bt_server()
+
 
 while running:
     try:
-        received = socket.recv(1024)
-        print('recibido' + str(received))
+        received = socket.recv(1)
+        print('Recibido: ' + str(received))
         if received == 'd': # Habilitar
             pass
-        #     socket.send('opcion20')
-        #     pass
         elif received == 'g': # Enviar string de info.
-            print('recibiendo datos GPS')
-
-            socket.send(get_position_data(gps))
+            print('Obteniendo datos GPS')
+            info = get_position_data(gps)
+            if info is None:
+               pass
+            else:
+                socket.send(info)
         elif received == 'u': # Desbloquear.
-             send_driver(0)
+            print('Cerrojo Desbloqueado')
+            send_driver(0)
         elif received == 'b': # Bloquear.
+             print('Cerrojo Bloqueado')
              send_driver(1)
+             start_time = time.time()
+             socket.close()
+             socket = bt_server()
         else:
+            print("ERROR en la orden. Recibido: " + str(received))
             break
-
-    except:
-        running = False
-        gps.close()
-        socket.close()
-        print "Application closed!"
+    except KeyboardInterrupt:
         Popen(["rmmod", "drv4"], stdout=PIPE, stderr=PIPE)
+        print "Application close!"
+        running = False
+
+
+
+    # finally:
+    #     running = False
+    #     gps.close()
+    #     socket.close()
+    #     Popen(["rmmod", "drv4"], stdout=PIPE, stderr=PIPE)
+    #     print "Application close!"
