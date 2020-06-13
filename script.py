@@ -49,7 +49,7 @@ def get_position_data(my_gps):
         elapsed_time = time.time() - start_time
         tiempo = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 
-        cadena = tiempo + "," + str(latitude) + "," + str(longitude) + "," + str(speed) + '$'
+        cadena = tiempo + "," + str(latitude) + "," + str(longitude) + "," + str(round(speed,2)) + '$'
         return cadena
 
 
@@ -88,6 +88,7 @@ def init_driver():
     print('driver installed!')
     time.sleep(3)
     os.chmod('/dev/Bikey', 0o777)
+    send_driver(1)
     print('permits changed')
 
 
@@ -125,8 +126,11 @@ while running:
         Popen(["rmmod", "drv4"], stdout=PIPE, stderr=PIPE)
         print "Application close!"
         running = False
-
-
+    except bluetooth.BluetoothError:
+        socket = bt_server()
+        start_time = time.time()
+        print "Application restarted!"
+ 
 
     # finally:
     #     running = False
