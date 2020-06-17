@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Bikey</string>
+    <!-- Strings related to login -->
+    <string name="prompt_email">Email</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in">Sign in or register</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="welcome">"Bienvenido !"</string>
+    <string name="block">"El dispositivo se ha bloqueado correctamente !"</string>
+    <string name="unblock">"El dispositivo se ha desbloqueado correctamente !"</string>
+    <string name="invalid_username">Not a valid username</string>
+    <string name="invalid_password">Password must be >5 characters</string>
+    <string name="login_failed">"Login failed"</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="tiempo_de_uso">Tiempo de uso</string>
+    <string name="velocidad">Velocidad</string>
+</resources>
